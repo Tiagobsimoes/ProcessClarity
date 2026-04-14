@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Case Handover Workflow</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:#F8F7F4;min-height:100vh;padding:24px 16px}
+#wrap{max-width:700px;margin:0 auto}
+.eyebrow{font-size:11px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
+h1{font-size:22px;font-weight:600;color:#1a1a18;line-height:1.2;margin-bottom:4px}
+.hint{font-size:13px;color:#888780;margin-bottom:20px}
+.legend{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#5F5E5A}
+.card{background:#fff;border-radius:16px;border:.5px solid #D3D1C7;padding:20px 8px;overflow:hidden}
+svg{display:block;width:100%}
+.node{cursor:pointer}
+.node rect,.node polygon{transition:fill .15s,stroke-width .15s}
+.footer{margin-top:12px;font-size:11px;color:#B4B2A9;text-align:center}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:400px;width:100%;border:.5px solid #D3D1C7;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.12)}
+.modal-head{padding:16px 20px 12px;border-bottom:.5px solid #E8E6E0}
+.modal-title{font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:3px}
+.modal-sub{font-size:11px;color:#888780}
+.modal-body{max-height:55vh;overflow-y:auto}
+.modal-row{padding:10px 20px;border-bottom:.5px solid #F1EFE8}
+.modal-label{font-size:10px;font-weight:600;color:#B4B2A9;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.modal-text{font-size:13px;color:#2C2C2A;line-height:1.6}
+.modal-foot{padding:12px 20px;border-top:.5px solid #E8E6E0}
+.btn-close{width:100%;padding:9px;border:.5px solid #D3D1C7;border-radius:8px;background:#F1EFE8;color:#2C2C2A;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit}
+.btn-close:hover{background:#E8E6DE}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <p class="eyebrow">SCIM Identity · Support Engineering</p>
+  <h1>Case Handover Workflow</h1>
+  <p class="hint">Click any node to view detailed guidance</p>
+
+  <div class="legend">
+    <div class="legend-item">
+      <svg width="32" height="12" style="overflow:visible">
+        <line x1="0" y1="6" x2="24" y2="6" stroke="#1D9E75" stroke-width="2"/>
+        <polygon points="22,3 28,6 22,9" fill="#1D9E75"/>
+      </svg>
+      Yes / Approved path
+    </div>
+    <div class="legend-item">
+      <svg width="32" height="12" style="overflow:visible">
+        <line x1="0" y1="6" x2="24" y2="6" stroke="#D85A30" stroke-width="2"/>
+        <polygon points="22,3 28,6 22,9" fill="#D85A30"/>
+      </svg>
+      No / Declined path
+    </div>
+    <div class="legend-item">
+      <svg width="32" height="12" style="overflow:visible">
+        <line x1="0" y1="6" x2="24" y2="6" stroke="#B4B2A9" stroke-width="2" stroke-dasharray="4 2"/>
+        <polygon points="22,3 28,6 22,9" fill="#B4B2A9"/>
+      </svg>
+      Loop-back (dashed)
+    </div>
+  </div>
+
+  <div class="card">
+    <svg viewBox="0 0 680 1000" id="diagram"></svg>
+  </div>
+  <p class="footer">SCIM Identity · FY26 OPEX · Case Handover Process</p>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-sub" id="modal-sub"></div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn-close" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+const DATA = {
+  start:    {title:"Should I transfer this case?",     sub:"Step 1 — evaluate before acting",          rows:[{l:"Ask yourself",     t:"Is there a genuine business reason to hand this case to another region or team?"},{l:"Consider",         t:"Time zone coverage, customer urgency, your shift ending, and whether Microsoft still owes a resolution."},{l:"If no transfer needed",t:"Keep the case. Work it yourself. Don't initiate the process unnecessarily."}]},
+  method:   {title:"Determine transfer method",         sub:"Warm or Cold — each has specific conditions",rows:[{l:"Warm",            t:"Customer is responsive, expects 24x7 coverage, and it is a SEV A or B with active business impact."},{l:"Cold",            t:"Customer does not need 24x7 or is not available during your hours. Work can happen outside your shift."},{l:"Key rule",        t:"You must verify ALL conditions for your chosen method before proceeding."}]},
+  warm:     {title:"Warm transfer conditions",          sub:"All 4 must be true",                        rows:[{l:"Condition 1",      t:"Customer requested 24x7 support on an eligible SEV A or B case. The 24x7 checkbox must be checked."},{l:"Condition 2",     t:"Customer is currently responsive and will stay available within the case owner's working hours."},{l:"Condition 3",     t:"There is an ongoing and compelling business impact."},{l:"Condition 4",     t:"Microsoft still owes a resolution — issue has not been mitigated yet."}]},
+  cold:     {title:"Cold transfer conditions",          sub:"All 3 must be true",                        rows:[{l:"Condition 1",      t:"Customer does not require 24x7 support — for example, SEV B or C with 24x7 unchecked."},{l:"Condition 2",     t:"Customer requested and is willing to work the case outside the case owner's hours."},{l:"Condition 3",     t:"Customer is not available during the case owner's hours and work is expected outside their shift."}]},
+  prepare:  {title:"Prepare for transfer",              sub:"Fill out the template before placing",       rows:[{l:"Step 1",          t:"Fill out the handover transfer template completely. Incomplete fields will cause the TA to return it."},{l:"Step 2",          t:"Save the completed template inside the case notes before placing the request."}], tmpl:["Case originated from","Transfer reason","Customer's availability","Best contact method","Customer language constraints"]},
+  place:    {title:"Place request and notify TA",       sub:"Don't assume they will see it automatically",rows:[{l:"Action 1",        t:"Place the handover request into the handover tool."},{l:"Action 2",        t:"Notify your assigned TA or Handover POC directly after placing the request."}]},
+  review:   {title:"Source TA reviews the request",     sub:"TA starts the formal review process",        rows:[{l:"TA responsibility",t:"The source TA picks up the request and reviews it from top to bottom."},{l:"First check",     t:"TA verifies DDX compliance — this is a mandatory field and cannot be skipped."}]},
+  ddx:      {title:"DDX compliance check",              sub:"Mandatory field — cannot proceed without it",rows:[{l:"What is DDX?",    t:"DDX (Diagnostic Data Exchange) compliancy must be filled in on the handover form."},{l:"If compliant",    t:"Move forward to the Approve or Decline decision."},{l:"If not compliant",t:"TA follows up with the engineer and leaves a QEA review, then the request loops back to Approve/Decline."}]},
+  ddxno:    {title:"Follow up and QEA review",          sub:"DDX not compliant — process paused",         rows:[{l:"TA action",       t:"Source TA follows up directly with the engineer responsible for the handover request."},{l:"QEA review",     t:"TA leaves a QEA review focused on handover process quality."},{l:"Next step",       t:"Once resolved, the request loops back to the Approve or Decline decision point."}]},
+  approve:  {title:"Approve or decline?",               sub:"TA makes the call",                          rows:[{l:"Approved",        t:"Handover is valid and eligible. Proceed to check if it is a CritSit."},{l:"Declined",        t:"Source TA sets status to Declined. Only use if the case genuinely should not be handed over."},{l:"Note",            t:"Declining ends the process. The engineer retains ownership of the case."}]},
+  critsit:  {title:"Is this case a CritSit?",           sub:"Determines the promotion path",              rows:[{l:"CritSit = Yes",   t:"Use warm handover — requires a live, active hand-off with immediate continuity."},{l:"CritSit = No",    t:"Use cold handover — standard async transfer, destination TA picks up when available."}]},
+  warmPromo:{title:"Promote warm handover",             sub:"Live, active hand-off",                      rows:[{l:"Step 1",          t:"Source TA sets the case status to Accepted."},{l:"Step 2",          t:"Engineer transfers the case to the queue."},{l:"Important",       t:"If the destination TA finds the HO non-compliant, set it as Not Compliant and open a dialog on DDX mismatches between source and destination."}]},
+  coldPromo:{title:"Promote cold handover",             sub:"Async transfer — destination TA picks up",   rows:[{l:"Step 1",          t:"Engineer updates case notes and transfers the case to the queue."},{l:"Step 2",          t:"Source TA leaves status in Pending and updates Country of Origin and Time Zone in DFM or CaseBuddy."},{l:"Step 3",          t:"Destination TA or PTA checks pending HOs, reviews DDX compliance, sets Accepted, and confirms SR assignment."}]},
+  declined: {title:"End of process — declined",         sub:"Case stays with the engineer",               rows:[{l:"Status",          t:"Source TA sets the status to Declined."},{l:"When to use",     t:"Only when the case genuinely should not be handed over to another team or region."},{l:"Outcome",         t:"Process ends here. The engineer retains full ownership of the case."}]},
+};
+
+// ── COLOURS ───────────────────────────────────────────────────────────
+const C = {
+  blue:  {bg:"#E6F1FB",bd:"#378ADD",tx:"#0C447C",sub:"#185FA5"},
+  amber: {bg:"#FAEEDA",bd:"#BA7517",tx:"#633806",sub:"#854F0B"},
+  gray:  {bg:"#F1EFE8",bd:"#888780",tx:"#2C2C2A",sub:"#5F5E5A"},
+  red:   {bg:"#FCEBEB",bd:"#A32D2D",tx:"#501313",sub:"#791F1F"},
+};
+const GR="#1D9E75", CO="#D85A30", NE="#888780", LO="#B4B2A9";
+
+// ── SVG HELPERS ───────────────────────────────────────────────────────
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs={}, parent=null){
+  const e = document.createElementNS(NS, tag);
+  for(const [k,v] of Object.entries(attrs)) e.setAttribute(k,v);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function txt(text, attrs={}, parent=null){
+  const e = el("text", attrs, parent);
+  e.textContent = text;
+  return e;
+}
+function marker(svg, id, color){
+  let defs = svg.querySelector("defs");
+  if(!defs){ defs = el("defs",{},svg); }
+  const m = el("marker",{id, viewBox:"0 0 10 10", refX:"8", refY:"5", markerWidth:"5", markerHeight:"5", orient:"auto-start-reverse"},defs);
+  el("path",{d:"M2 1L8 5L2 9", fill:"none", stroke:color, "stroke-width":"1.8", "stroke-linecap":"round", "stroke-linejoin":"round"},m);
+}
+function arrow(svg, pts, color, dashed=false){
+  const mid = "arr"+color.replace("#","");
+  marker(svg, mid, color);
+  el("polyline",{
+    points: pts,
+    fill:"none", stroke:color,
+    "stroke-width": dashed?"1.2":"1.8",
+    "stroke-dasharray": dashed?"5 3":"none",
+    "stroke-linecap":"round","stroke-linejoin":"round",
+    "marker-end":`url(#${mid})`
+  }, svg);
+}
+function branchLabel(svg, x, y, text, color){
+  txt(text,{x,y,"text-anchor":"middle","dominant-baseline":"central",fill:color,"font-size":"11","font-weight":"600"},svg);
+}
+
+// ── NODE ──────────────────────────────────────────────────────────────
+function addNode(svg, {x,y,w,h,color,title,sub,id}){
+  const c = C[color];
+  const g = el("g",{class:"node"},svg);
+  const r = el("rect",{x,y,width:w,height:h,rx:"8",fill:c.bg,stroke:c.bd,"stroke-width":"0.75"},g);
+  const ty = sub ? y+h/2-9 : y+h/2;
+  const t1 = txt(title,{x:x+w/2,y:ty,"text-anchor":"middle","dominant-baseline":"central",fill:c.tx,"font-size":"13","font-weight":"500"},g);
+  if(sub){
+    txt(sub,{x:x+w/2,y:y+h/2+9,"text-anchor":"middle","dominant-baseline":"central",fill:c.sub,"font-size":"11"},g);
+  }
+  g.addEventListener("mouseenter",()=>{ r.setAttribute("fill",c.bd); r.setAttribute("stroke-width","1.5"); t1.setAttribute("fill","#fff"); });
+  g.addEventListener("mouseleave",()=>{ r.setAttribute("fill",c.bg); r.setAttribute("stroke-width","0.75"); t1.setAttribute("fill",c.tx); });
+  g.addEventListener("click",()=>openModal(id));
+}
+
+// ── DIAMOND ───────────────────────────────────────────────────────────
+function addDiamond(svg, {cx,cy,size,color,label,label2,id}){
+  const c = C[color];
+  const g = el("g",{class:"node"},svg);
+  const r = el("rect",{x:cx-size,y:cy-size,width:size*2,height:size*2,rx:"6",
+    transform:`rotate(45 ${cx} ${cy})`,fill:c.bg,stroke:c.bd,"stroke-width":"0.75"},g);
+  const t1 = txt(label,{x:cx,y:label2?cy-5:cy,"text-anchor":"middle","dominant-baseline":"central",fill:c.tx,"font-size":"11","font-weight":"500"},g);
+  if(label2) txt(label2,{x:cx,y:cy+8,"text-anchor":"middle","dominant-baseline":"central",fill:c.sub,"font-size":"10"},g);
+  g.addEventListener("mouseenter",()=>{ r.setAttribute("fill",c.bd); r.setAttribute("stroke-width","1.5"); t1.setAttribute("fill","#fff"); });
+  g.addEventListener("mouseleave",()=>{ r.setAttribute("fill",c.bg); r.setAttribute("stroke-width","0.75"); t1.setAttribute("fill",c.tx); });
+  g.addEventListener("click",()=>openModal(id));
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────
+function openModal(id){
+  const d = DATA[id]; if(!d) return;
+  document.getElementById("modal-title").textContent = d.title;
+  document.getElementById("modal-sub").textContent = d.sub;
+  const rowsHtml = d.rows.map(r=>`
+    <div class="modal-row">
+      <div class="modal-label">${r.l}</div>
+      <div class="modal-text">${r.t}</div>
+    </div>`).join("");
+  const tmplHtml = d.tmpl ? `
+    <div style="padding:10px 20px 14px;border-bottom:.5px solid #F1EFE8;">
+      <div class="modal-label" style="margin-bottom:8px;">Transfer template — required notes</div>
+      ${d.tmpl.map(f=>`
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">
+          <span style="margin-top:5px;width:5px;height:5px;border-radius:50%;background:#888780;flex-shrink:0;display:inline-block;"></span>
+          <span style="font-size:13px;color:#2C2C2A;line-height:1.5;">${f}</span>
+        </div>`).join("")}
+    </div>` : "";
+  document.getElementById("modal-body").innerHTML = rowsHtml + tmplHtml;
+  document.getElementById("overlay").classList.add("open");
+}
+function closeModal(e){
+  if(!e || e.target===document.getElementById("overlay"))
+    document.getElementById("overlay").classList.remove("open");
+}
+
+// ── BUILD DIAGRAM ─────────────────────────────────────────────────────
+const svg = document.getElementById("diagram");
+const CX = 340;
+
+// Marker for dot
+(()=>{
+  const defs = el("defs",{},svg);
+  const m = el("marker",{id:"dot",viewBox:"0 0 10 10",refX:"5",refY:"5",markerWidth:"4",markerHeight:"4"},defs);
+  el("circle",{cx:"5",cy:"5",r:"4",fill:"#185FA5"},m);
+})();
+
+// Connectors (drawn first, nodes on top)
+arrow(svg,`${CX},72 ${CX},95`, NE);
+
+arrow(svg,"308,122 112,122 112,188", NE);
+branchLabel(svg,213,113,"Warm",NE);
+
+arrow(svg,"372,122 568,122 568,188", NE);
+branchLabel(svg,467,113,"Cold",NE);
+
+el("polyline",{points:"112,252 112,272 340,272",fill:"none",stroke:NE,"stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round"},svg);
+el("polyline",{points:"568,252 568,272 340,272",fill:"none",stroke:NE,"stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round"},svg);
+arrow(svg,`${CX},272 ${CX},290`, NE);
+
+arrow(svg,`${CX},338 ${CX},358`, NE);
+arrow(svg,`${CX},406 ${CX},426`, NE);
+arrow(svg,`${CX},474 ${CX},489`, NE);
+
+arrow(svg,"308,514 200,514 200,579", CO);
+branchLabel(svg,252,502,"No",CO);
+
+arrow(svg,`${CX},539 ${CX},700`, GR);
+branchLabel(svg,357,557,"Yes",GR);
+
+// Loop-back dashed
+el("polyline",{points:"448,611 464,611 464,704 344,704",fill:"none",stroke:LO,"stroke-width":"1.2","stroke-dasharray":"5 3","stroke-linecap":"round","stroke-linejoin":"round"},svg);
+el("polyline",{points:"352,704 344,700",fill:"none",stroke:LO,"stroke-width":"1.2","stroke-linecap":"round","stroke-linejoin":"round","marker-end":"url(#dot)"},svg);
+txt("↩ loops back after fix",{x:"466",y:"658","text-anchor":"start","dominant-baseline":"central",fill:LO,"font-size":"10","font-style":"italic"},svg);
+
+// Merge dot
+el("circle",{cx:CX,cy:"700",r:"5",fill:"#185FA5"},svg);
+
+arrow(svg,`${CX},705 ${CX},714`, NE);
+
+arrow(svg,"308,738 140,738 140,786", CO);
+branchLabel(svg,222,727,"Declined",CO);
+
+arrow(svg,`${CX},765 ${CX},833`, GR);
+branchLabel(svg,396,798,"Approved",GR);
+
+arrow(svg,"308,860 308,886 148,886 148,906", CO);
+branchLabel(svg,220,876,"Yes",CO);
+
+arrow(svg,"372,860 532,860 532,906", GR);
+branchLabel(svg,454,849,"No",GR);
+
+// Nodes
+addNode(svg,  {x:200,y:24,  w:280,h:48,color:"blue",  title:"Should I transfer this case?", sub:"Evaluate the need first",         id:"start"});
+addDiamond(svg,{cx:CX, cy:122, size:27,color:"gray",  label:"Method?",                                                              id:"method"});
+addNode(svg,  {x:20,  y:188, w:184,h:64,color:"amber", title:"Warm transfer",                sub:"4 conditions required",           id:"warm"});
+addNode(svg,  {x:476, y:188, w:184,h:64,color:"blue",  title:"Cold transfer",                sub:"3 conditions required",           id:"cold"});
+addNode(svg,  {x:200, y:290, w:280,h:48,color:"gray",  title:"Prepare for transfer",         sub:"Fill template, save in case",     id:"prepare"});
+addNode(svg,  {x:200, y:358, w:280,h:48,color:"gray",  title:"Place in handover tool",       sub:"Notify your TA or POC",           id:"place"});
+addNode(svg,  {x:200, y:426, w:280,h:48,color:"gray",  title:"Source TA reviews request",    sub:"TA picks up and starts review",   id:"review"});
+addDiamond(svg,{cx:CX, cy:514, size:27,color:"amber", label:"DDX",  label2:"OK?",                                                   id:"ddx"});
+addNode(svg,  {x:76,  y:579, w:248,h:64,color:"red",   title:"Follow up + QEA review",       sub:"TA follows up with engineer",     id:"ddxno"});
+addDiamond(svg,{cx:CX, cy:738, size:27,color:"gray",  label:"Approve?",                                                             id:"approve"});
+addNode(svg,  {x:48,  y:786, w:184,h:48,color:"red",   title:"End of process",               sub:"Status → Declined",               id:"declined"});
+addDiamond(svg,{cx:CX, cy:860, size:27,color:"amber", label:"CritSit?",                                                             id:"critsit"});
+addNode(svg,  {x:28,  y:906, w:240,h:64,color:"amber", title:"Warm handover",                sub:"TA sets status to Accepted",      id:"warmPromo"});
+addNode(svg,  {x:412, y:906, w:240,h:64,color:"blue",  title:"Cold handover",                sub:"Destination TA picks up",         id:"coldPromo"});
+</script>
+</body>
+</html>
