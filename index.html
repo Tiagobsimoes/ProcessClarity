@@ -89,10 +89,10 @@ svg{display:block;width:100%}
 // ── DATA ──────────────────────────────────────────────────────────────
 const DATA = {
   start:    {title:"Should I transfer this case?",     sub:"Step 1 — evaluate before acting",          rows:[{l:"Ask yourself",     t:"Is there a genuine business reason to hand this case to another region or team?"},{l:"Consider",         t:"Time zone coverage, customer urgency, your shift ending, and whether Microsoft still owes a resolution."},{l:"If no transfer needed",t:"Keep the case. Work it yourself. Don't initiate the process unnecessarily."}]},
-  method:   {title:"Determine transfer method",         sub:"Warm or Cold — each has specific conditions",rows:[{l:"Warm",            t:"Customer is responsive, expects 24x7 coverage, and it is a SEV A or B with active business impact."},{l:"Cold",            t:"Customer does not need 24x7 or is not available during your hours. Work can happen outside your shift."},{l:"Key rule",        t:"You must verify ALL conditions for your chosen method before proceeding."}]},
+  method:   {title:"Determine transfer method",         sub:"Warm or Cold — each has specific conditions",rows:[{l:"Warm",            t:"Customer is responsive, expects 24x7 coverage, and it is a SEV A or B24x7 with active business impact."},{l:"Cold",            t:"Customer does not need 24x7 or is not available during your hours. Work can happen outside your shift."},{l:"Key rule",        t:"You must verify ALL conditions for your chosen method before proceeding."}]},
   warm:     {title:"Warm transfer conditions",          sub:"All 4 must be true",                        rows:[{l:"Condition 1",      t:"Customer requested 24x7 support on an eligible SEV A or B case. The 24x7 checkbox must be checked."},{l:"Condition 2",     t:"Customer is currently responsive and will stay available within the case owner's working hours."},{l:"Condition 3",     t:"There is an ongoing and compelling business impact."},{l:"Condition 4",     t:"Microsoft still owes a resolution — issue has not been mitigated yet."}]},
   cold:     {title:"Cold transfer conditions",          sub:"All 3 must be true",                        rows:[{l:"Condition 1",      t:"Customer does not require 24x7 support — for example, SEV B or C with 24x7 unchecked."},{l:"Condition 2",     t:"Customer requested and is willing to work the case outside the case owner's hours."},{l:"Condition 3",     t:"Customer is not available during the case owner's hours and work is expected outside their shift."}]},
-  prepare:  {title:"Prepare for transfer",              sub:"Fill out the template before placing",       rows:[{l:"Step 1",          t:"Fill out the handover transfer template completely. Incomplete fields will cause the TA to return it."},{l:"Step 2",          t:"Save the completed template inside the case notes before placing the request."}], tmpl:["Case originated from","Transfer reason","Customer's availability","Best contact method","Customer language constraints"]},
+  prepare:  {title:"Prepare for transfer",              sub:"Fill out the template before placing",       rows:[{l:"Step 1",          t:"Fill out the handover transfer template completely. Incomplete fields will cause the TA to return it."},{l:"Step 2",          t:"Save the completed template inside the case notes before placing the request."}], tmpl:["Case originated from","Transfer reason","Customer's availability","Best contact method","Customer language constraints"], blocks:[{h:"Scope",items:["[Issue Description]","[Business Impact]","[Expected Outcome]"]},{h:"Case Summary",items:["[Environment]","[Troubleshooting]","[Environment]","[Troubleshooting]"]},{h:"Action Plan",items:["Case Status: [who]","Next Action: [what/why]","Next Contact: [when]"]}]},
   place:    {title:"Place request and notify TA",       sub:"Don't assume they will see it automatically",rows:[{l:"Action 1",        t:"Place the handover request into the handover tool."},{l:"Action 2",        t:"Notify your assigned TA or Handover POC directly after placing the request."}]},
   review:   {title:"Source TA reviews the request",     sub:"TA starts the formal review process",        rows:[{l:"TA responsibility",t:"The source TA picks up the request and reviews it from top to bottom."},{l:"First check",     t:"TA verifies DDX compliance — this is a mandatory field and cannot be skipped."}]},
   ddx:      {title:"DDX compliance check",              sub:"Mandatory field — cannot proceed without it",rows:[{l:"What is DDX?",    t:"DDX (Diagnostic Data Exchange) compliancy must be filled in on the handover form."},{l:"If compliant",    t:"Move forward to the Approve or Decline decision."},{l:"If not compliant",t:"TA follows up with the engineer and leaves a QEA review, then the request loops back to Approve/Decline."}]},
@@ -195,7 +195,17 @@ function openModal(id){
           <span style="font-size:13px;color:#2C2C2A;line-height:1.5;">${f}</span>
         </div>`).join("")}
     </div>` : "";
-  document.getElementById("modal-body").innerHTML = rowsHtml + tmplHtml;
+  const blocksHtml = d.blocks ? `
+    <div style="padding:14px 20px 6px;">
+      <div class="modal-label" style="margin-bottom:10px;">Body / text structure</div>
+      ${d.blocks.map((b,i)=>`
+        ${i>0?'<div style="border-top:.5px dashed #D3D1C7;margin:10px 0;"></div>':'<div style="border-top:.5px dashed #D3D1C7;margin:0 0 10px;"></div>'}
+        <div style="font-size:12px;font-weight:600;color:#1a1a18;margin-bottom:6px;">${b.h}:</div>
+        ${b.items.map(it=>`<div style="font-size:13px;color:#5F5E5A;line-height:1.6;font-family:'Consolas','Courier New',monospace;padding-left:8px;">${it}</div>`).join("")}
+      `).join("")}
+      <div style="border-top:.5px dashed #D3D1C7;margin-top:10px;"></div>
+    </div>` : "";
+  document.getElementById("modal-body").innerHTML = rowsHtml + tmplHtml + blocksHtml;
   document.getElementById("overlay").classList.add("open");
 }
 function closeModal(e){
